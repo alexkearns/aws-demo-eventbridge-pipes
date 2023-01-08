@@ -28,3 +28,40 @@ Resources:
     Type: "AWS::SES::EmailIdentity"
     Properties:
       EmailIdentity: !Ref "pEmailDomainName"
+
+  ShopDynamoDBTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      BillingMode: "PAY_PER_REQUEST"
+      AttributeDefinitions:
+        - AttributeName: "PK"
+          AttributeType: "S"
+        - AttributeName: "SK"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "PK"
+          KeyType: "HASH"
+        - AttributeName: "SK"
+          KeyType: "RANGE"
+
+  ProcessOrderStateMachine:
+    Type: "AWS::Serverless::StateMachine"
+    Properties:
+      DefinitionUri: "./state-machines/process-order.asl.yaml"
+      DefinitionSubstitutions:
+        ShopTableName: !Ref "ShopDynamoDBTable"
+        FromEmailAddress: !Join ["@", ["shop", !Ref "pEmailDomainName"]]
+      Policies:
+        - Statement:
+          - Sid: "WriteAccessToDynamoDbTable"
+            Effect: "Allow"
+            Action:
+              - "dynamodb:PutItem"
+            Resource:
+              - !GetAtt "ShopDynamoDBTable.Arn"
+          - Sid: "SendEmailViaSES"
+            Effect: "Allow"
+            Action:
+              - "ses:SendEmail"
+            Resource:
+              - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${SesEmailIdentity}"
