@@ -5,6 +5,11 @@ Description: >
 
   SAM Template for aws-eventbridge-pipes-demo
 
+Parameters:
+  pEmailDomainName:
+    Type: "String"
+    Description: "The domain name to verify for the SES email identity"
+
 Resources:
   OrdersQueue:
     Type: "AWS::SQS::Queue"
@@ -18,3 +23,8 @@ Resources:
     Type: "AWS::SQS::Queue"
     Properties:
       QueueName: "orders-to-be-processed-dlq"
+
+  SesEmailIdentity:
+    Type: "AWS::SES::EmailIdentity"
+    Properties:
+      EmailIdentity: !Ref "pEmailDomainName"
