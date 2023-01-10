@@ -65,3 +65,21 @@ Resources:
               - "ses:SendEmail"
             Resource:
               - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${SesEmailIdentity}"
+
+  CustomerDataEnrichmentFunction:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      CodeUri: "./lambda-functions/customer-data-enrichment"
+      Handler: "app.lambda_handler"
+      Runtime: "python3.9"
+      Environment:
+        Variables:
+          SHOP_DYNAMODB_TABLE: !Ref "ShopDynamoDBTable"
+      Policies:
+        - Statement:
+          - Sid: "ReadDynamoDbTable"
+            Effect: "Allow"
+            Action:
+              - "dynamodb:GetItem"
+            Resource:
+              - !GetAtt "ShopDynamoDBTable.Arn"
