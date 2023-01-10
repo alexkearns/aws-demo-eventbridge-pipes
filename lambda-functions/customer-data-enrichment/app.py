@@ -1,3 +1,4 @@
+import json
 import os
 import boto3
 
@@ -10,16 +11,21 @@ table = ddb.Table(SHOP_TABLE)
 
 
 def lambda_handler(event, context):
-    customer_id = event["Customer"]["Id"]
-    result = table.get_item(
-        Key={
-            "PK": f"CUST#{customer_id}",
-            "SK": "META"
-        }
-    )
-    item = result["Item"]
+    response = []
+    for item in event:
+        item = json.loads(item["body"])
+        customer_id = item["Customer"]["Id"]
+        result = table.get_item(
+            Key={
+                "PK": f"CUST#{customer_id}",
+                "SK": "META"
+            }
+        )
+        result = result["Item"]
 
-    event["Customer"]["Name"] = item["Name"]
-    event["Customer"]["EmailAddress"] = item["EmailAddress"]
+        item["Customer"]["Name"] = result["Name"]
+        item["Customer"]["EmailAddress"] = result["EmailAddress"]
 
-    return event
+        response.append(item)
+
+    return response

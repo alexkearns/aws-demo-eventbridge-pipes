@@ -1,39 +1,45 @@
-StartAt: "Generate order ID"
+StartAt: "Process order"
 States:
-  Generate order ID:
-    Type: "Pass"
-    Parameters:
-      Generated.$: "States.UUID()"
-    ResultPath: "$.Order.Id"
-    Next: "Store order"
+  Process order:
+    Type: "Map"
+    ItemProcessor:
+      StartAt: "Generate order ID"
+      States:
+        Generate order ID:
+          Type: "Pass"
+          Parameters:
+            Generated.$: "States.UUID()"
+          ResultPath: "$.Order.Id"
+          Next: "Store order"
 
-  Store order:
-    Type: "Task"
-    Resource: "arn:aws:states:::dynamodb:putItem"
-    Parameters:
-      TableName: "${ShopTableName}"
-      Item:
-        PK.$: "States.Format('CUST#{}', $.Customer.Id)"
-        SK.$: "States.Format('ORDER#{}', $.Order.Id.Generated)"
-        Timestamp.$: "$.Order.Timestamp"
-        Items.$: "States.JsonToString($.Order.Items)"
-        TotalCostInMinorUnit.$: "$.Order.TotalCostInMinorUnit"
-        Status: "RECEIVED"
-    ResultPath: null
-    Next: "Send order notification"
+        Store order:
+          Type: "Task"
+          Resource: "arn:aws:states:::dynamodb:putItem"
+          Parameters:
+            TableName: "${ShopTableName}"
+            Item:
+              PK.$: "States.Format('CUST#{}', $.Customer.Id)"
+              SK.$: "States.Format('ORDER#{}', $.Order.Id.Generated)"
+              Timestamp.$: "$.Order.Timestamp"
+              Items.$: "States.JsonToString($.Order.Items)"
+              TotalCostInMinorUnit.$: "$.Order.TotalCostInMinorUnit"
+              Status: "RECEIVED"
+          ResultPath: null
+          Next: "Send order notification"
 
-  Send order notification:
-    Type: "Task"
-    Resource: "arn:aws:states:::aws-sdk:sesv2:sendEmail"
-    Parameters:
-      Destination:
-        ToAddresses.$: "States.Array($.Customer.EmailAddress)"
-      FromEmailAddress: "${FromEmailAddress}"
-      Content:
-        Simple:
-          Subject:
-            Data.$: "States.Format('Order {} has been received', $.Order.Id.Generated)"
-          Body:
-            Text:
-              Data.$: "States.Format('Hello {}, thank you for your order totalling {}. You will receive another email confirming dispatch once items have been processed in our warehouse', $.Customer.Name, $.Order.TotalCostInMajorUnit)"
+        Send order notification:
+          Type: "Task"
+          Resource: "arn:aws:states:::aws-sdk:sesv2:sendEmail"
+          Parameters:
+            Destination:
+              ToAddresses.$: "States.Array($.Customer.EmailAddress)"
+            FromEmailAddress: "${FromEmailAddress}"
+            Content:
+              Simple:
+                Subject:
+                  Data.$: "States.Format('Order {} has been received', $.Order.Id.Generated)"
+                Body:
+                  Text:
+                    Data.$: "States.Format('Hello {}, thank you for your order totalling {}. You will receive another email confirming dispatch once items have been processed in our warehouse', $.Customer.Name, $.Order.TotalCostInMajorUnit)"
+          End: True
     End: True

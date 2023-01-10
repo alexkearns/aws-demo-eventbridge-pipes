@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: "AWS::Serverless-2016-10-31"
 Description: >
   aws-eventbridge-pipes-demo
 
@@ -47,6 +47,7 @@ Resources:
   ProcessOrderStateMachine:
     Type: "AWS::Serverless::StateMachine"
     Properties:
+      Type: "EXPRESS"
       DefinitionUri: "./state-machines/process-order.asl.yaml"
       DefinitionSubstitutions:
         ShopTableName: !Ref "ShopDynamoDBTable"
@@ -83,3 +84,36 @@ Resources:
               - "dynamodb:GetItem"
             Resource:
               - !GetAtt "ShopDynamoDBTable.Arn"
+
+  OrderProcessingPipeRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "pipes.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: "BaseInlinePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: "UseSqsAsSource"
+                Effect: "Allow"
+                Action:
+                  - "sqs:ReceiveMessage"
+                  - "sqs:DeleteMessage"
+                  - "sqs:GetQueueAttributes"
+                Resource: !GetAtt "OrdersQueue.Arn"
+              - Sid: "InvokeEnrichmentLambdaFunction"
+                Effect: "Allow"
+                Action:
+                  - "lambda:InvokeFunction"
+                Resource: !GetAtt "CustomerDataEnrichmentFunction.Arn"
+              - Sid: "ExecuteSfnWorkflowAsTarget"
+                Effect: "Allow"
+                Action:
+                  - "states:StartSyncExecution"
+                Resource: !Ref "ProcessOrderStateMachine"
